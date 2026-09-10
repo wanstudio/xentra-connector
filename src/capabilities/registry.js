@@ -7,7 +7,7 @@ const CAPABILITIES = Object.freeze({
   readiness: true,
   capability_discovery: true,
   contract_negotiation: true,
-  typed_persistence: false,
+  typed_persistence: true,
   object_storage: false,
 });
 
