@@ -7,6 +7,8 @@ const { getCapabilities } = require('../capabilities/registry');
 const { verifyRequest } = require('../auth/requestVerifier');
 const { negotiateContract } = require('../contract/negotiate');
 const { ConnectorError } = require('../contract/errors');
+const { createPersistenceService } = require('../persistence/createPersistenceService');
+const { OPERATIONS } = require('../contract/operations');
 
 const MAX_BODY_BYTES = 64 * 1024;
 
@@ -41,14 +43,17 @@ function authFailure(res, code) {
   return writeJson(res, 401, { error: 'AUTHORIZATION_REJECTED', code });
 }
 
-async function handleNegotiation(req, res) {
-  const body = await readBody(req);
-  const auth = verifyRequest({ headers: req.headers, method: req.method, url: req.url, body }, {
+function requireServiceAuth(req, body) {
+  return verifyRequest({ headers: req.headers, method: req.method, url: req.url, body }, {
     connectorId: config.connectorId,
     secret: config.coreHmacSecret,
     maxSkewMs: config.authMaxSkewMs,
   });
+}
 
+async function handleNegotiation(req, res) {
+  const body = await readBody(req);
+  const auth = requireServiceAuth(req, body);
   if (!auth.ok) return authFailure(res, auth.code);
 
   let input;
@@ -74,7 +79,42 @@ async function handleNegotiation(req, res) {
   }
 }
 
-function createHttpServer() {
+async function handlePersistence(req, res, persistenceService) {
+  const body = await readBody(req);
+  const auth = requireServiceAuth(req, body);
+  if (!auth.ok) return authFailure(res, auth.code);
+
+  let input;
+  try {
+    input = body ? JSON.parse(body) : {};
+  } catch (_error) {
+    return writeJson(res, 400, { error: 'VALIDATION_REJECTED', code: 'INVALID_JSON' });
+  }
+
+  try {
+    const result = await persistenceService.execute(input.operation, input.input);
+    return writeJson(res, 200, {
+      contract_version: config.contractVersion,
+      connector_id: config.connectorId,
+      operation: input.operation,
+      ...result,
+    });
+  } catch (error) {
+    const contractError = error instanceof ConnectorError
+      ? error
+      : new ConnectorError('INTERNAL_ERROR', 'Connector integration failure', { cause: error });
+    const status = contractError.code === 'VALIDATION_REJECTED' ? 400 : 409;
+    return writeJson(res, status, {
+      error: contractError.code,
+      retryable: contractError.retryable,
+      message: contractError.message,
+    });
+  }
+}
+
+function createHttpServer(options = {}) {
+  const persistenceService = options.persistenceService || createPersistenceService(options.adapter, options.persistenceOptions);
+
   return http.createServer(async (req, res) => {
     try {
       if (req.method === 'GET' && req.url === '/health') {
@@ -87,6 +127,10 @@ function createHttpServer() {
 
       if (req.method === 'POST' && req.url === '/v1/contract/negotiate') {
         return await handleNegotiation(req, res);
+      }
+
+      if (req.method === 'POST' && req.url === '/v1/persistence') {
+        return await handlePersistence(req, res, persistenceService);
       }
 
       return writeJson(res, 404, {
