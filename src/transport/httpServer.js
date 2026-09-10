@@ -176,13 +176,6 @@ function serveIndexFallback(res, publicDir) {
   return serveStaticFile(res, indexPath);
 }
 
-function isApiRoute(url) {
-  return url === '/health'
-    || url === '/capabilities'
-    || url.startsWith('/v1/')
-    || url.startsWith('/api/');
-}
-
 function createHttpServer(options = {}) {
   const persistenceService = options.persistenceService || createPersistenceService(options.adapter, options.persistenceOptions);
   const publicDir = options.publicDir || getPublicDir();

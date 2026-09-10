@@ -1,3 +1,0 @@
-# This directory holds the Customer PWA static files.
-# Deploy by copying apps/customer-pwa/* from xentra-core.
-# See deploy-sync-pwa.sh for automated deployment.

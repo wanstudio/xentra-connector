@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Bangjo — Spesial Ayam Tulang Lunak</title>
+  <meta name="description" content="Pesan ayam tulang lunak spesial Bangjo langsung dari HP. Delivery & Pick-up tersedia!">
+  <meta name="theme-color" content="#b6ff00">
+  <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval' data: blob:; style-src * 'unsafe-inline' https:; img-src * data: blob: https: http:; connect-src * https: http: ws: wss:;">
+
+  <!-- ══════════════════════════════════════════════════════════════
+       PWA VERSION SENTINEL & EARLY INSTALL PROMPT CAPTURE
+       Executes immediately in <head> to capture beforeinstallprompt on Android
+       ══════════════════════════════════════════════════════════════ -->
+  <script>
+    (function () {
+      var PWA_VERSION = 'v_p7f4a0b';
+      try {
+        if (localStorage.getItem('__xentra_rel') !== PWA_VERSION) {
+          localStorage.setItem('__xentra_rel', PWA_VERSION);
+          if ('caches' in window) {
+            caches.keys().then(function (names) {
+              return Promise.all(names.map(function (n) { return caches.delete(n); }));
+            }).catch(function () {});
+          }
+        }
+      } catch (_) {}
+
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__xentra_deferred_prompt = e;
+      });
+    })();
+  </script>
+
+  <!-- PWA Manifest & Icons -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Bangjo">
+  <link rel="apple-touch-icon" href="/assets/pwa/icon-192.png">
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- CSS (version-hashed for instant cache-busting) -->
+  <link rel="stylesheet" href="/assets/css/tokens.css?v=p7f4a07">
+  <link rel="stylesheet" href="/assets/css/layout.css?v=p7f4a07">
+  <link rel="stylesheet" href="/assets/css/components.css?v=p7f4a07">
+  <link rel="stylesheet" href="/assets/css/home.css?v=p7f4a07">
+  <link rel="stylesheet" href="/assets/css/checkout.css?v=p7f4a07">
+  <link rel="stylesheet" href="/assets/css/order-received.css?v=p7f4a07">
+  <link rel="stylesheet" href="/assets/css/location-picker.css?v=p7f4a07">
+</head>
+<body>
+
+  <!-- ═══════════════════════════════════════════════════
+       1. HOME VIEW (MENU KATALOG)
+       ═══════════════════════════════════════════════════ -->
+  <div id="xentra-home-view" class="x-page">
+
+    <!-- HERO HEADER -->
+    <header class="x-hero-header">
+      <div class="x-hero-top-row">
+        <!-- LEFT: Active Destination Location Pill (Tap to open "Pilih lokasi") -->
+        <button type="button" class="x-hero-loc-pill" id="x-hero-loc-pill" aria-label="Pilih lokasi pengiriman">
+          <span class="x-hero-loc-icon">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M7.5 0.9375C6.13298 0.939113 4.8224 1.48288 3.85577 2.44951C2.88913 3.41615 2.34537 4.72672 2.34375 6.09375C2.3425 7.21082 2.70737 8.29753 3.3825 9.1875C3.3825 9.1875 3.52313 9.37266 3.5461 9.39937L7.5 14.0625L11.4558 9.39703C11.4764 9.37219 11.6175 9.1875 11.6175 9.1875L11.618 9.18609C12.2927 8.29645 12.6573 7.21029 12.6563 6.09375C12.6546 4.72672 12.1109 3.41615 11.1442 2.44951C10.1776 1.48288 8.86703 0.939113 7.5 0.9375ZM7.5 7.96875C7.12916 7.96875 6.76665 7.85878 6.45831 7.65276C6.14997 7.44673 5.90964 7.15389 5.76773 6.81128C5.62581 6.46867 5.58868 6.09167 5.66103 5.72796C5.73338 5.36424 5.91195 5.03015 6.17418 4.76792C6.4364 4.5057 6.77049 4.32712 7.13421 4.25478C7.49792 4.18243 7.87492 4.21956 8.21753 4.36148C8.56015 4.50339 8.85298 4.74371 9.05901 5.05206C9.26504 5.3604 9.375 5.72291 9.375 6.09375C9.37438 6.59084 9.17664 7.06739 8.82514 7.41889C8.47365 7.77039 7.99709 7.96813 7.5 7.96875Z" fill="#1E1E1E"/></svg>
+          </span>
+          <span class="x-hero-loc-text" id="x-hero-loc-text">Lokasimu</span>
+        </button>
+
+        <!-- RIGHT: Yuk Join! + Library (Orders) + Profile -->
+        <div class="x-hero-action-icons">
+          <button type="button" class="x-hero-btn-join" id="x-btn-join">Yuk, join!</button>
+          <button type="button" class="x-hero-icon-btn x-hero-icon-btn-library" id="x-btn-library" aria-label="Riwayat Pesanan">
+            <img src="/assets/icons/library.svg" alt="Riwayat" width="17" height="17">
+          </button>
+          <button type="button" class="x-hero-icon-btn x-hero-icon-btn-profile" id="x-btn-profile" aria-label="Profil Saya">
+            <img src="/assets/icons/black_flowbite_user-solid.svg" alt="Profil" width="22" height="22">
+          </button>
+        </div>
+      </div>
+      <div class="x-hero-clock-wrap">
+        <div class="x-hero-time" id="x-hero-time"></div>
+        <div class="x-hero-date" id="x-hero-date"></div>
+      </div>
+    </header>
+
+    <!-- CAROUSEL BANNER (Smooth Looping Carousel) -->
+    <div class="x-carousel-container">
+      <div class="x-carousel-track x-scroll-hide" id="x-carousel-track">
+        <div class="x-carousel-slide">
+          <img src="https://app.mybangjo.com/wp-content/uploads/2026/08/unnamed-7-1.png" alt="Promo Bangjo 1" loading="eager">
+        </div>
+        <div class="x-carousel-slide">
+          <img src="https://app.mybangjo.com/wp-content/uploads/2026/08/unnamed-7-1.png" alt="Promo Bangjo 2" loading="lazy">
+        </div>
+        <div class="x-carousel-slide">
+          <img src="https://app.mybangjo.com/wp-content/uploads/2026/08/unnamed-7-1.png" alt="Promo Bangjo 3" loading="lazy">
+        </div>
+      </div>
+      <div class="x-carousel-dots" id="x-carousel-dots"></div>
+    </div>
+
+    <!-- P2 FAST BRANCH DISCOVERY (rendered dynamically by home.js) -->
+    <div id="x-branch-discovery" class="x-branch-discovery" hidden></div>
+
+    <!-- CATEGORY TABS -->
+    <div class="x-cat-wrap">
+      <div class="x-cat-track x-scroll-hide" id="x-cat-track">
+        <!-- Rendered dynamically by home.js -->
+      </div>
+    </div>
+
+    <!-- PRODUCT LIST -->
+    <div class="x-products" id="x-products">
+      <div class="x-loading">Memuat menu...</div>
+    </div>
+
+    <!-- CART DOCK (Floating Bottom Bar) -->
+    <div class="x-cart-dock" id="x-cart-dock">
+      <!-- Promo progress bar -->
+      <div class="x-promo" id="x-promo" style="display:none">
+        <div class="x-promo-icon">
+          <img class="x-promo-icon-img" id="x-promo-icon-img" src="" alt="">
+        </div>
+        <div class="x-promo-body">
+          <div id="x-promo-text"></div>
+          <div class="x-progress"><div id="x-progress-fill"></div></div>
+        </div>
+      </div>
+
+      <!-- Cart bar -->
+      <div class="x-bottom-cart" id="x-bottom-cart">
+        <a href="#checkout" class="x-cart-checkout-link" id="x-cart-checkout-link">
+          <div class="x-cart-summary">
+            <strong id="x-cart-count">0 Item</strong>
+            <span>Lihat pesanan kamu</span>
+          </div>
+          <div id="x-cart-total">0</div>
+        </a>
+        <button id="x-cart-button" aria-label="Keranjang">
+          <img class="x-cart-icon" src="/assets/icons/cart.svg" width="35" height="35" alt="Keranjang">
+          <span id="x-cart-badge" style="display:none">0</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- CART SHEET (Bottom Sheet) -->
+    <div class="x-backdrop" id="x-backdrop"></div>
+    <div class="x-sheet" id="x-sheet">
+      <div class="x-sheet-handle"></div>
+      <div class="x-sheet-content">
+        <h2>Keranjang</h2>
+        <div id="x-sheet-items"></div>
+        <div class="x-sheet-total">
+          <div class="x-sheet-summary-title">Ringkasan Pesanan</div>
+          <div id="x-sheet-summary"></div>
+        </div>
+        <button class="x-sheet-checkout" id="x-sheet-checkout">Lanjut Checkout</button>
+      </div>
+    </div>
+
+  </div><!-- /#xentra-home-view -->
+
+  <!-- ═══════════════════════════════════════════════════
+       2. CHECKOUT VIEW (SLIDE-UP / INSTANT SPA VIEW)
+       ═══════════════════════════════════════════════════ -->
+  <div id="xentra-checkout-view" class="x-page" style="display:none;"></div>
+
+  <!-- ═══════════════════════════════════════════════════
+       3. ORDER RECEIVED VIEW (LIVE TRACKER SPA VIEW)
+       ═══════════════════════════════════════════════════ -->
+  <div id="xentra-order-view" class="x-page" style="display:none;"></div>
+
+  <!-- ═══════════════════════════════════════════════════
+       4. AFFILIATE VIEW (YUK, JOIN!)
+       ═══════════════════════════════════════════════════ -->
+  <div id="xentra-affiliate-view" class="x-page" style="display:none;"></div>
+
+  <!-- ═══════════════════════════════════════════════════
+       5. ORDER HISTORY VIEW (LIBRARY.SVG)
+       ═══════════════════════════════════════════════════ -->
+  <div id="xentra-history-view" class="x-page" style="display:none;"></div>
+
+  <!-- ═══════════════════════════════════════════════════
+       6. PROFILE VIEW (USER ICON)
+       ═══════════════════════════════════════════════════ -->
+  <div id="xentra-profile-view" class="x-page" style="display:none;"></div>
+
+  <!-- NOTE SHEET (EXACT XENTRA-MVP PORTAL) -->
+  <div id="x-note-overlay" class="x-note-overlay" style="display:none;">
+    <div id="x-note-sheet" class="x-note-sheet">
+      <div class="x-note-handle"></div>
+      <div class="x-note-header">
+        <h3>Tambah catatan untuk pembelian</h3>
+      </div>
+      <textarea id="x-note-input" maxlength="200" placeholder="Tambahkan catatan..."></textarea>
+      <div class="x-note-footer">
+        <span id="x-note-counter">0/200</span>
+        <button id="x-note-save" type="button">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PWA INSTALL BANNER -->
+  <div class="x-pwa-banner" id="x-pwa-banner">
+    <div class="x-pwa-banner-card">
+      <div class="x-pwa-banner-left">
+        <img class="x-pwa-banner-icon" src="/assets/pwa/icon-192.png" alt="Bangjo">
+        <div class="x-pwa-banner-text">
+          <strong>Bangjo App</strong>
+          <span>Install untuk pengalaman terbaik</span>
+        </div>
+      </div>
+      <div class="x-pwa-banner-right">
+        <button class="x-pwa-btn-install" id="x-pwa-install">Install</button>
+        <button class="x-pwa-btn-dismiss" id="x-pwa-dismiss">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════
+       JS CORE & CONTROLLERS (Version Hashed v2.3.6)
+       ═══════════════════════════════════════════════════ -->
+  <script src="/assets/js/core/store.js?v=p7f4a02"></script>
+  <script src="/assets/js/core/ui.js?v=p7f4a02"></script>
+  <script src="/assets/js/core/api.js?v=p7f4a02"></script>
+  <script src="/assets/js/core/nav.js?v=p7f4a02"></script>
+  <script src="/assets/js/core/router.js?v=p7f4a02"></script>
+  <script src="/assets/js/core/pwa-runtime.js?v=p7f4a08"></script>
+  <script src="/assets/js/core/promo-reward-cart.js?v=p7f4a03"></script>
+  <script src="/assets/js/core/delivery-schedule.js?v=p7f4a09"></script>
+  <script src="/assets/js/location.js?v=p7f4a04"></script>
+  <script src="/assets/js/core/discovery.js?v=p7f4a04"></script>
+  <script src="/assets/js/core/location-picker.js?v=p7f4a06"></script>
+
+  <!-- Page Controllers -->
+  <script src="/assets/js/pages/home.js?v=p7f4a08"></script>
+  <script src="/assets/js/pages/checkout.js?v=p7f4a0b"></script>
+  <script src="/assets/js/pages/order-received.js?v=p7f4a03"></script>
+  <script src="/assets/js/pages/aux-pages.js?v=p7f4a03"></script>
+
+  <!-- ═══════════════════════════════════════════════════
+       SPA ROUTER & VIEW COORDINATOR
+       ═══════════════════════════════════════════════════ -->
+  <script>
+    (function () {
+      var Router = window.Xentra && window.Xentra.Router;
+      var Checkout = window.Xentra && window.Xentra.Checkout;
+      var OrderReceived = window.Xentra && window.Xentra.OrderReceived;
+      var AuxPages = window.XentraAuxPages;
+
+      if (!Router) return;
+
+      function updateViews(view, params) {
+        var homeEl = document.getElementById('xentra-home-view');
+        var checkoutEl = document.getElementById('xentra-checkout-view');
+        var orderEl = document.getElementById('xentra-order-view');
+        var affiliateEl = document.getElementById('xentra-affiliate-view');
+        var historyEl = document.getElementById('xentra-history-view');
+        var profileEl = document.getElementById('xentra-profile-view');
+
+        // Hide all views first
+        if (homeEl) homeEl.style.display = 'none';
+        if (checkoutEl) checkoutEl.style.display = 'none';
+        if (orderEl) orderEl.style.display = 'none';
+        if (affiliateEl) affiliateEl.style.display = 'none';
+        if (historyEl) historyEl.style.display = 'none';
+        if (profileEl) profileEl.style.display = 'none';
+
+        if (view === 'checkout') {
+          if (checkoutEl) {
+            checkoutEl.style.display = 'block';
+            if (Checkout) Checkout.mount(checkoutEl, params);
+            window.scrollTo(0, 0);
+          }
+        } else if (view === 'order-received') {
+          if (orderEl) {
+            orderEl.style.display = 'block';
+            if (OrderReceived) OrderReceived.mount(orderEl, params && params.orderId);
+            window.scrollTo(0, 0);
+          }
+        } else if (view === 'affiliate') {
+          if (affiliateEl) {
+            affiliateEl.style.display = 'block';
+            if (AuxPages) AuxPages.mountAffiliate(affiliateEl);
+            window.scrollTo(0, 0);
+          }
+        } else if (view === 'history') {
+          if (historyEl) {
+            historyEl.style.display = 'block';
+            if (AuxPages) AuxPages.mountHistory(historyEl);
+            window.scrollTo(0, 0);
+          }
+        } else if (view === 'profile') {
+          if (profileEl) {
+            profileEl.style.display = 'block';
+            if (AuxPages) AuxPages.mountProfile(profileEl);
+            window.scrollTo(0, 0);
+          }
+        } else {
+          // Home
+          if (homeEl) {
+            homeEl.style.display = 'block';
+            if (window.XentraHome && typeof window.XentraHome.refresh === 'function') {
+              window.XentraHome.refresh();
+            }
+            window.scrollTo(0, 0);
+          }
+        }
+      }
+
+      Router.subscribe(updateViews);
+
+      // Initial route
+      var initialView = Router.getViewFromUrl();
+      var initialOrderId = Router.getOrderIdFromUrl();
+      var initialItemId = Router.getItemIdFromUrl();
+      if (initialView !== 'home') {
+        updateViews(initialView, { orderId: initialOrderId, itemId: initialItemId });
+      }
+
+      // Intercept Cart Link click
+      var cartLink = document.getElementById('x-cart-checkout-link');
+      if (cartLink) {
+        cartLink.onclick = function (e) {
+          e.preventDefault();
+          if (window.XentraHome && typeof window.XentraHome.openCheckoutFlow === 'function') {
+            window.XentraHome.openCheckoutFlow();
+          } else {
+            Router.navigate('checkout');
+          }
+        };
+      }
+    })();
+  </script>
+
+  <!-- ═══════════════════════════════════════════════════
+       SERVICE WORKER ENGINE (Clean & Smooth)
+       ═══════════════════════════════════════════════════ -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js?v=p7f4a0b').then(function (reg) {
+        reg.addEventListener('updatefound', function () {
+          var newWorker = reg.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', function () {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                newWorker.postMessage({ action: 'skipWaiting' });
+              }
+            });
+          }
+        });
+      }).catch(function (err) {
+        console.warn('[PWA] Registration warn:', err);
+      });
+
+      var refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
+    }
+  </script>
+</body>
+</html>
