@@ -17,6 +17,8 @@ if (!Number.isInteger(authMaxSkewMs) || authMaxSkewMs < 1000 || authMaxSkewMs > 
   throw new Error('Invalid XENTRA_AUTH_MAX_SKEW_MS');
 }
 
+const coreOrigin = process.env.XENTRA_CORE_ORIGIN || 'https://xentra.cloud';
+
 module.exports = Object.freeze({
   contractVersion,
   port,
@@ -24,4 +26,5 @@ module.exports = Object.freeze({
   coreHmacSecret,
   authMaxSkewMs,
   publicDir,
+  coreOrigin,
 });

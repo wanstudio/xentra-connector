@@ -1,6 +1,7 @@
 'use strict';
 
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const config = require('../config');
@@ -176,10 +177,50 @@ function serveIndexFallback(res, publicDir) {
   return serveStaticFile(res, indexPath);
 }
 
+function delegateToCore(req, res, coreOrigin) {
+  if (!coreOrigin) {
+    return writeJson(res, 502, { error: 'CORE_UNAVAILABLE', message: 'Core origin not configured' });
+  }
+
+  let targetUrl;
+  try {
+    targetUrl = new URL(req.url, coreOrigin);
+  } catch (_e) {
+    return writeJson(res, 400, { error: 'VALIDATION_REJECTED', code: 'INVALID_URL' });
+  }
+
+  const client = targetUrl.protocol === 'https:' ? https : http;
+  const forwardedHost = req.headers['x-forwarded-host'] || req.headers.host || '';
+  const forwardedProto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https' : 'http');
+
+  const headers = { ...req.headers };
+  headers.host = targetUrl.host;
+  if (forwardedHost) headers['x-forwarded-host'] = forwardedHost;
+  if (forwardedProto) headers['x-forwarded-proto'] = forwardedProto;
+
+  const proxyReq = client.request(targetUrl, {
+    method: req.method,
+    headers,
+  }, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res, { end: true });
+  });
+
+  proxyReq.on('error', (err) => {
+    console.error('Core proxy failure:', err.message);
+    if (!res.headersSent) {
+      writeJson(res, 502, { error: 'CORE_UNAVAILABLE', message: 'Failed to reach Core dashboard' });
+    }
+  });
+
+  req.pipe(proxyReq, { end: true });
+}
+
 function createHttpServer(options = {}) {
   const persistenceService = options.persistenceService || createPersistenceService(options.adapter, options.persistenceOptions);
   const publicDir = options.publicDir || getPublicDir();
   const hasPublicDir = fs.existsSync(publicDir) && fs.statSync(publicDir).isDirectory();
+  const targetCoreOrigin = options.coreOrigin || config.coreOrigin;
 
   return http.createServer(async (req, res) => {
     try {
@@ -199,9 +240,15 @@ function createHttpServer(options = {}) {
         return await handlePersistence(req, res, persistenceService);
       }
 
+      const urlPath = req.url.split('?')[0];
+
+      // Delegate /dashboard, /dashboard/*, /dashboard/assets/* to Core runtime
+      if (urlPath === '/dashboard' || urlPath.startsWith('/dashboard/')) {
+        return delegateToCore(req, res, targetCoreOrigin);
+      }
+
       // Static file serving for Customer PWA (GET/HEAD only)
       if (hasPublicDir && (req.method === 'GET' || req.method === 'HEAD')) {
-        const urlPath = req.url.split('?')[0];
 
         // Try exact file match first
         const filePath = resolvePublicPath(publicDir, req.url);
