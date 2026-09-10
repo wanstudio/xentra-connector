@@ -8,6 +8,13 @@ const path = require('node:path');
 
 const { createRuntimePersistenceService } = require('../../src/persistence/createRuntimePersistenceService');
 
+let DatabaseSync;
+try {
+  ({ DatabaseSync } = require('node:sqlite'));
+} catch (_) {
+  DatabaseSync = null;
+}
+
 function createFixtureSchema(db) {
   db.exec(`
     PRAGMA foreign_keys = ON;
@@ -59,9 +66,7 @@ function createFixtureSchema(db) {
       rate_per_km_applied REAL, delivery_fee_calculated REAL, status TEXT,
       created_at TEXT, updated_at TEXT
     );
-  `);
 
-  db.exec(`
     INSERT INTO branches VALUES ('br_1', 'brand_1', 'Branch 1', 'branch-1', 'Jl. Test 1', -5.4, 105.2, '0812', 1, 1);
     INSERT INTO branch_delivery_settings VALUES ('br_1', 1, 1, 10, 2, 2500, 0, 0, 0);
     INSERT INTO branch_categories VALUES ('bc_1', 'brand_1', 'br_1', 'Makanan');
@@ -71,25 +76,27 @@ function createFixtureSchema(db) {
   `);
 }
 
-test('runtime persistence service uses the native SQLite adapter and typed operations', async () => {
-  const { DatabaseSync } = require('node:sqlite');
+test('runtime persistence service uses the native SQLite adapter and typed operations', { skip: !DatabaseSync }, async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xentra-connector-'));
   const dbPath = path.join(dir, 'client.db');
-  const seedDb = new DatabaseSync(dbPath);
-  createFixtureSchema(seedDb);
-  seedDb.close();
 
-  const service = await createRuntimePersistenceService({ dbPath });
-  const branch = await service.execute('get_branch_operational_data', { branch_id: 'br_1' });
-  assert.equal(branch.branch.id, 'br_1');
-  assert.equal(branch.branch.delivery.is_delivery_active, 1);
+  try {
+    const seedDb = new DatabaseSync(dbPath);
+    createFixtureSchema(seedDb);
+    seedDb.close();
 
-  const catalog = await service.execute('get_catalog_data', { branch_id: 'br_1' });
-  assert.equal(catalog.items.length, 1);
-  assert.equal(catalog.items[0].name, 'Nasi Goreng');
+    const service = await createRuntimePersistenceService({ dbPath });
+    const branch = await service.execute('branch.get_operational_data', { branch_id: 'br_1' });
+    assert.equal(branch.branch.id, 'br_1');
+    assert.equal(branch.branch.delivery.is_delivery_active, 1);
 
-  const inventory = await service.execute('get_inventory_availability', { branch_id: 'br_1' });
-  assert.equal(inventory.items[0].stock, 10);
+    const catalog = await service.execute('catalog.get', { branch_id: 'br_1' });
+    assert.equal(catalog.items.length, 1);
+    assert.equal(catalog.items[0].name, 'Nasi Goreng');
 
-  fs.rmSync(dir, { recursive: true, force: true });
+    const inventory = await service.execute('inventory.get_availability', { branch_id: 'br_1' });
+    assert.equal(inventory.items[0].stock, 10);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
