@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 
-const { createHttpServer } = require('../src/transport/httpServer');
+const { createHttpServer, resolvePublicPath } = require('../src/transport/httpServer');
 
 function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'connector-pwa-'));
@@ -33,6 +33,17 @@ function noopAdapter() {
     async syncCatalog() { return {}; },
   };
 }
+
+test('static file serving: public path resolver rejects traversal', () => {
+  const publicDir = path.resolve(tmpDir());
+  try {
+    assert.equal(resolvePublicPath(publicDir, '/%2e%2e%2fsecret.txt'), null);
+    assert.equal(resolvePublicPath(publicDir, '/%2e%2e%5csecret.txt'), null);
+    assert.equal(resolvePublicPath(publicDir, '/assets/app.js'), path.join(publicDir, 'assets', 'app.js'));
+  } finally {
+    fs.rmSync(publicDir, { recursive: true, force: true });
+  }
+});
 
 test('static file serving: serves index.html at root', async () => {
   const publicDir = tmpDir();

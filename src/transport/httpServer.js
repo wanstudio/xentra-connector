@@ -138,6 +138,23 @@ function getPublicDir() {
   return config.publicDir || path.join(__dirname, '../../public');
 }
 
+function resolvePublicPath(publicDir, requestUrl) {
+  let pathname;
+  try {
+    pathname = decodeURIComponent(new URL(requestUrl, 'http://connector.local').pathname);
+  } catch (_error) {
+    return null;
+  }
+
+  // Prefix with '.' so an absolute URL pathname cannot replace publicDir.
+  const resolved = path.resolve(publicDir, `.${pathname}`);
+  const relative = path.relative(publicDir, resolved);
+  if (relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative))) {
+    return resolved;
+  }
+  return null;
+}
+
 function serveStaticFile(res, filePath) {
   try {
     if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) return false;
@@ -194,20 +211,20 @@ function createHttpServer(options = {}) {
         const urlPath = req.url.split('?')[0];
 
         // Try exact file match first
-        const filePath = path.join(publicDir, urlPath);
-        if (serveStaticFile(res, filePath)) return;
+        const filePath = resolvePublicPath(publicDir, req.url);
+        if (filePath && serveStaticFile(res, filePath)) return;
 
         // Clean path for further resolution (strip trailing slash)
         const cleanPath = urlPath.endsWith('/') ? urlPath.slice(0, -1) : urlPath;
 
         if (!path.extname(cleanPath)) {
           // Try directory index (e.g., /checkout/ -> /checkout/index.html)
-          const dirIndex = path.join(publicDir, cleanPath, 'index.html');
-          if (serveStaticFile(res, dirIndex)) return;
+          const dirIndex = resolvePublicPath(publicDir, `${cleanPath}/index.html`);
+          if (dirIndex && serveStaticFile(res, dirIndex)) return;
 
           // Try with .html extension (e.g., /checkout -> /checkout.html)
-          const htmlPath = path.join(publicDir, cleanPath + '.html');
-          if (serveStaticFile(res, htmlPath)) return;
+          const htmlPath = resolvePublicPath(publicDir, cleanPath + '.html');
+          if (htmlPath && serveStaticFile(res, htmlPath)) return;
         }
 
         // SPA fallback: serve index.html for client-side routes
@@ -235,4 +252,4 @@ function start(server = createHttpServer()) {
   });
 }
 
-module.exports = { createHttpServer, start, readBody };
+module.exports = { createHttpServer, start, readBody, resolvePublicPath };
