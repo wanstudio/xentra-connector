@@ -1,11 +1,11 @@
 'use strict';
 
-const { start: startServer } = require('./transport/httpServer');
+const { createHttpServer, start: listen } = require('./transport/httpServer');
 const { createRuntimePersistenceService } = require('./persistence/createRuntimePersistenceService');
 
 async function start() {
   const persistenceService = await createRuntimePersistenceService();
-  return startServer(require('./transport/httpServer').createHttpServer({ persistenceService }));
+  return listen(createHttpServer({ persistenceService }));
 }
 
 if (require.main === module) {
