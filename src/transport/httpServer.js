@@ -5,12 +5,13 @@ const config = require('../config');
 const { getStatus } = require('../health/status');
 const { getCapabilities } = require('../capabilities/registry');
 const { verifyRequest } = require('../auth/requestVerifier');
+const ReplayGuard = require('../auth/replayGuard');
 const { negotiateContract } = require('../contract/negotiate');
 const { ConnectorError } = require('../contract/errors');
 const { createPersistenceService } = require('../persistence/createPersistenceService');
-const { OPERATIONS } = require('../contract/operations');
 
 const MAX_BODY_BYTES = 64 * 1024;
+const replayGuard = new ReplayGuard({ ttlMs: config.authMaxSkewMs });
 
 function writeJson(res, statusCode, body) {
   const payload = JSON.stringify(body);
@@ -48,6 +49,7 @@ function requireServiceAuth(req, body) {
     connectorId: config.connectorId,
     secret: config.coreHmacSecret,
     maxSkewMs: config.authMaxSkewMs,
+    replayGuard,
   });
 }
 
