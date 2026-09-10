@@ -19,7 +19,7 @@ test('client schema validator accepts the minimum connector schema', () => {
 
   const db = {
     exec(sql) {
-      const match = /^PRAGMA table_info\\(([^)]+)\\);$/.exec(sql);
+      const match = /^PRAGMA table_info\(([^)]+)\);$/.exec(sql);
       const columns = tables[match && match[1]] || [];
       return columns.length
         ? [{ values: columns.map((name, index) => [index, name]), columns: ['cid', 'name'] }]
@@ -33,7 +33,7 @@ test('client schema validator accepts the minimum connector schema', () => {
 test('client schema validator fails closed when a required column is missing', () => {
   const db = {
     exec(sql) {
-      const table = sql.match(/^PRAGMA table_info\\(([^)]+)\\);$/)[1];
+      const table = sql.match(/^PRAGMA table_info\(([^)]+)\);$/)[1];
       if (table === 'branches') return [{ values: [[0, 'id']], columns: ['cid', 'name'] }];
       return [];
     },
