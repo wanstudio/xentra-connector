@@ -31,7 +31,8 @@ function createFixtureSchema(db) {
       promo_min_order REAL
     );
     CREATE TABLE branch_categories (
-      id TEXT PRIMARY KEY, brand_id TEXT NOT NULL, branch_id TEXT NOT NULL, name TEXT NOT NULL
+      id TEXT PRIMARY KEY, brand_id TEXT NOT NULL, branch_id TEXT NOT NULL, name TEXT NOT NULL,
+      image_url TEXT, sort_order INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE products (
       id TEXT PRIMARY KEY, brand_id TEXT NOT NULL, name TEXT NOT NULL, slug TEXT NOT NULL,
@@ -69,7 +70,7 @@ function createFixtureSchema(db) {
 
     INSERT INTO branches VALUES ('br_1', 'brand_1', 'Branch 1', 'branch-1', 'Jl. Test 1', -5.4, 105.2, '0812', 1, 1);
     INSERT INTO branch_delivery_settings VALUES ('br_1', 1, 1, 10, 2, 2500, 0, 0, 0);
-    INSERT INTO branch_categories VALUES ('bc_1', 'brand_1', 'br_1', 'Makanan');
+    INSERT INTO branch_categories VALUES ('bc_1', 'brand_1', 'br_1', 'Makanan', null, 0);
     INSERT INTO products VALUES ('p_1', 'brand_1', 'Nasi Goreng', 'nasi-goreng', 'Deskripsi', '/master.png', null, null);
     INSERT INTO categories VALUES ('c_1', 'brand_1', 'Master');
     INSERT INTO branch_products VALUES ('br_1', 'p_1', 'bc_1', null, null, null, 25000, 10, 1, 5, '2026-09-10T00:00:00.000Z');
@@ -79,13 +80,14 @@ function createFixtureSchema(db) {
 test('runtime persistence service uses the native SQLite adapter and typed operations', { skip: !DatabaseSync }, async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'xentra-connector-'));
   const dbPath = path.join(dir, 'client.db');
+  let service;
 
   try {
     const seedDb = new DatabaseSync(dbPath);
     createFixtureSchema(seedDb);
     seedDb.close();
 
-    const service = await createRuntimePersistenceService({ dbPath });
+    service = await createRuntimePersistenceService({ dbPath });
     const branch = await service.execute('branch.get_operational_data', { branch_id: 'br_1' });
     assert.equal(branch.branch.id, 'br_1');
     assert.equal(branch.branch.delivery.is_delivery_active, 1);
@@ -101,6 +103,7 @@ test('runtime persistence service uses the native SQLite adapter and typed opera
     const inventory = await service.execute('inventory.get_availability', { branch_id: 'br_1' });
     assert.equal(inventory.items[0].stock, 10);
   } finally {
+    await service?.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });

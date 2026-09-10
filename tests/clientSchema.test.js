@@ -8,7 +8,7 @@ test('client schema validator accepts the minimum connector schema', () => {
   const tables = {
     branches: ['id', 'brand_id', 'name', 'slug', 'address_text', 'latitude', 'longitude', 'phone', 'is_active', 'is_open_override'],
     branch_delivery_settings: ['branch_id', 'is_delivery_active', 'is_pickup_active', 'max_radius_km', 'free_delivery_km', 'price_per_km', 'min_order_amount', 'promo_delivery_discount', 'promo_min_order'],
-    branch_categories: ['id', 'brand_id', 'branch_id', 'name'],
+    branch_categories: ['id', 'brand_id', 'branch_id', 'name', 'image_url', 'sort_order'],
     products: ['id', 'brand_id', 'name', 'slug', 'description', 'image_url', 'image', 'category_id'],
     categories: ['id', 'brand_id', 'name'],
     branch_products: ['branch_id', 'product_id', 'branch_category_id', 'name_override', 'description_override', 'image_override', 'price', 'stock', 'is_available', 'low_stock_threshold', 'created_at'],

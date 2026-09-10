@@ -48,6 +48,10 @@ class SqliteClientDataAdapter extends ClientDataAdapter {
     this.persist = typeof options.persist === 'function' ? options.persist : async () => {};
   }
 
+  close() {
+    if (typeof this.db.close === 'function') this.db.close();
+  }
+
   #queryMany(sql, params = []) {
     try {
       const result = this.db.exec(sql, params);

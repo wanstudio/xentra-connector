@@ -35,6 +35,12 @@ class TypedPersistenceService {
     }
   }
 
+  async close() {
+    if (typeof this.adapter.close === 'function') {
+      await this.adapter.close();
+    }
+  }
+
   async #executeIdempotent(operation, mutationId, input, handler) {
     const key = `${operation}:${String(mutationId)}`;
     if (this.idempotency.has(key)) {
