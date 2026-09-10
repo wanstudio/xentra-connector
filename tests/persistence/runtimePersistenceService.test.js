@@ -93,6 +93,10 @@ test('runtime persistence service uses the native SQLite adapter and typed opera
     const catalog = await service.execute('catalog.get', { branch_id: 'br_1' });
     assert.equal(catalog.items.length, 1);
     assert.equal(catalog.items[0].name, 'Nasi Goreng');
+    assert.ok(Array.isArray(catalog.categories), 'categories must be an array');
+    assert.equal(catalog.categories.length, 1);
+    assert.equal(catalog.categories[0].id, 'bc_1');
+    assert.equal(catalog.categories[0].name, 'Makanan');
 
     const inventory = await service.execute('inventory.get_availability', { branch_id: 'br_1' });
     assert.equal(inventory.items[0].stock, 10);

@@ -134,7 +134,14 @@ class SqliteClientDataAdapter extends ClientDataAdapter {
       ORDER BY bp.created_at ASC, bp.product_id ASC
     `, [input.branch_id]);
 
-    return { branch_id: input.branch_id, items };
+    const categories = this.#queryMany(`
+      SELECT id, name, image_url, sort_order
+      FROM ${this.tables.branchCategories}
+      WHERE branch_id = ?
+      ORDER BY sort_order ASC, name ASC
+    `, [input.branch_id]);
+
+    return { branch_id: input.branch_id, categories, items };
   }
 
   async getInventoryAvailability(input) {

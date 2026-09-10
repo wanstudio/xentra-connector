@@ -10,7 +10,7 @@ function adapter() {
   return {
     calls,
     async getBranchOperationalData(input) { calls.push(['branch', input]); return { branch_id: input.branch_id, open: true }; },
-    async getCatalogData(input) { calls.push(['catalog', input]); return { branch_id: input.branch_id, items: [] }; },
+    async getCatalogData(input) { calls.push(['catalog', input]); return { branch_id: input.branch_id, categories: [], items: [] }; },
     async getInventoryAvailability(input) { calls.push(['inventory', input]); return { branch_id: input.branch_id, items: [] }; },
     async persistOrder(input) { calls.push(['order', input]); return { order_id: input.order.id }; },
   };
@@ -25,7 +25,7 @@ test('typed persistence delegates only approved operations', async () => {
   const client = adapter();
   const service = new TypedPersistenceService(client);
 
-  assert.deepEqual(await service.execute(OPERATIONS.GET_CATALOG_DATA, { branch_id: 'b1' }), { branch_id: 'b1', items: [] });
+  assert.deepEqual(await service.execute(OPERATIONS.GET_CATALOG_DATA, { branch_id: 'b1' }), { branch_id: 'b1', categories: [], items: [] });
   assert.equal(client.calls.length, 1);
 });
 
