@@ -147,8 +147,11 @@ function resolvePublicPath(publicDir, requestUrl) {
     return null;
   }
 
+  // Normalize all directory separators to '/' (handles '%5c' / '\' traversal on Linux/POSIX)
+  const normalizedPath = pathname.replace(/\\/g, '/');
+
   // Prefix with '.' so an absolute URL pathname cannot replace publicDir.
-  const resolved = path.resolve(publicDir, `.${pathname}`);
+  const resolved = path.resolve(publicDir, `.${normalizedPath}`);
   const relative = path.relative(publicDir, resolved);
   if (relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative))) {
     return resolved;
