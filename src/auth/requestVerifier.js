@@ -58,6 +58,10 @@ function verifyRequest({ headers, method, url, body }, options = {}) {
     return { ok: false, code: 'SIGNATURE_INVALID' };
   }
 
+  if (options.replayGuard && !options.replayGuard.consume(`${connectorId}:${requestId}`)) {
+    return { ok: false, code: 'REPLAY_DETECTED' };
+  }
+
   return { ok: true, connectorId, requestId };
 }
 
