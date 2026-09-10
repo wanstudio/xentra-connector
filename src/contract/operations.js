@@ -7,6 +7,7 @@ const OPERATIONS = Object.freeze({
   GET_CATALOG_DATA: 'catalog.get',
   GET_INVENTORY_AVAILABILITY: 'inventory.get_availability',
   PERSIST_ORDER: 'order.persist',
+  CATALOG_SYNC: 'catalog.sync',
 });
 
 const REQUIRED_FIELDS = Object.freeze({
@@ -14,6 +15,7 @@ const REQUIRED_FIELDS = Object.freeze({
   [OPERATIONS.GET_CATALOG_DATA]: ['branch_id'],
   [OPERATIONS.GET_INVENTORY_AVAILABILITY]: ['branch_id'],
   [OPERATIONS.PERSIST_ORDER]: ['mutation_id', 'order'],
+  [OPERATIONS.CATALOG_SYNC]: ['mutation_id', 'branch_id', 'categories', 'products'],
 });
 
 function assertPlainObject(value, message = 'Expected object') {

@@ -26,6 +26,10 @@ class ClientDataAdapter {
   async persistOrder(_input) {
     throw new Error('Capability not configured');
   }
+
+  async syncCatalog(_input) {
+    throw new Error('Capability not configured');
+  }
 }
 
 module.exports = ClientDataAdapter;

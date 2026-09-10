@@ -268,6 +268,119 @@ class SqliteClientDataAdapter extends ClientDataAdapter {
     await this.persist();
     return { order_id: order.id, persisted: true, conflict: false };
   }
+
+  async syncCatalog(input) {
+    assertId(input.branch_id, 'branch_id');
+    if (!Array.isArray(input.categories)) {
+      throw new ConnectorError(CODES.VALIDATION_REJECTED, 'categories must be an array', { retryable: false });
+    }
+    if (!Array.isArray(input.products)) {
+      throw new ConnectorError(CODES.VALIDATION_REJECTED, 'products must be an array', { retryable: false });
+    }
+
+    for (const cat of input.categories) {
+      if (!cat || typeof cat.id !== 'string' || cat.id.length === 0) {
+        throw new ConnectorError(CODES.VALIDATION_REJECTED, 'Invalid category: missing id', { retryable: false });
+      }
+      if (typeof cat.name !== 'string' || cat.name.length === 0) {
+        throw new ConnectorError(CODES.VALIDATION_REJECTED, `Invalid category ${cat.id}: missing name`, { retryable: false });
+      }
+    }
+
+    for (const prod of input.products) {
+      if (!prod || typeof prod.id !== 'string' || prod.id.length === 0) {
+        throw new ConnectorError(CODES.VALIDATION_REJECTED, 'Invalid product: missing id', { retryable: false });
+      }
+      if (typeof prod.name !== 'string' || prod.name.length === 0) {
+        throw new ConnectorError(CODES.VALIDATION_REJECTED, `Invalid product ${prod.id}: missing name`, { retryable: false });
+      }
+      if (typeof prod.price !== 'number' || prod.price < 0) {
+        throw new ConnectorError(CODES.VALIDATION_REJECTED, `Invalid product ${prod.id}: price must be non-negative number`, { retryable: false });
+      }
+    }
+
+    let categoriesUpserted = 0;
+    let productsUpserted = 0;
+    let branchProductsUpserted = 0;
+
+    this.#transaction(() => {
+      this.#run(`DELETE FROM ${this.tables.branchProducts} WHERE branch_id = ?`, [input.branch_id]);
+      this.#run(`DELETE FROM ${this.tables.branchCategories} WHERE branch_id = ?`, [input.branch_id]);
+
+      for (const cat of input.categories) {
+        this.#run(`
+          INSERT INTO ${this.tables.branchCategories} (id, brand_id, branch_id, name, image_url, sort_order)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            image_url = excluded.image_url,
+            sort_order = excluded.sort_order
+        `, [
+          cat.id,
+          input.brand_id || null,
+          input.branch_id,
+          cat.name,
+          cat.image_url || null,
+          Number(cat.sort_order || 0),
+        ]);
+        categoriesUpserted++;
+      }
+
+      for (const prod of input.products) {
+        this.#run(`
+          INSERT INTO ${this.tables.products} (id, brand_id, name, slug, description, image_url, category_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET
+            name = excluded.name,
+            slug = excluded.slug,
+            description = excluded.description,
+            image_url = excluded.image_url,
+            category_id = excluded.category_id
+        `, [
+          prod.id,
+          input.brand_id || null,
+          prod.name,
+          prod.slug || '',
+          prod.description || '',
+          prod.image_url || null,
+          prod.category_id || null,
+        ]);
+        productsUpserted++;
+      }
+
+      for (const bp of input.products) {
+        this.#run(`
+          INSERT INTO ${this.tables.branchProducts} (
+            branch_id, product_id, branch_category_id, name_override,
+            description_override, image_override, price, stock,
+            is_available, low_stock_threshold, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `, [
+          input.branch_id,
+          bp.id,
+          bp.branch_category_id || null,
+          bp.name_override || null,
+          bp.description_override || null,
+          bp.image_override || null,
+          Number(bp.price),
+          Number(bp.stock != null ? bp.stock : 100),
+          bp.is_available != null ? (bp.is_available ? 1 : 0) : 1,
+          Number(bp.low_stock_threshold != null ? bp.low_stock_threshold : 5),
+          bp.created_at || new Date().toISOString(),
+        ]);
+        branchProductsUpserted++;
+      }
+    });
+
+    await this.persist();
+
+    return {
+      branch_id: input.branch_id,
+      categories_upserted: categoriesUpserted,
+      products_upserted: productsUpserted,
+      branch_products_upserted: branchProductsUpserted,
+    };
+  }
 }
 
 async function createSqliteFileAdapter({ dbPath, initSqlJs }) {

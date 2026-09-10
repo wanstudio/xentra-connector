@@ -19,6 +19,10 @@ class TypedPersistenceService {
       return this.#executeIdempotent(operation, input.mutation_id, input, () => this.adapter.persistOrder(input));
     }
 
+    if (operation === OPERATIONS.CATALOG_SYNC) {
+      return this.#executeIdempotent(operation, input.mutation_id, input, () => this.adapter.syncCatalog(input));
+    }
+
     switch (operation) {
       case OPERATIONS.GET_BRANCH_OPERATIONAL_DATA:
         return this.adapter.getBranchOperationalData(input);

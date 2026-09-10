@@ -207,3 +207,154 @@ test('sqlite adapter persists an order atomically with items and delivery', asyn
   assert.equal(db.exec('SELECT COUNT(*) AS c FROM order_items')[0].values[0][0], 1);
   assert.equal(db.exec('SELECT COUNT(*) AS c FROM order_deliveries')[0].values[0][0], 1);
 });
+
+test('sqlite adapter catalog.sync upserts categories, products, and branch_products', async () => {
+  const SQL = await initSqlJs();
+  const db = new SQL.Database();
+
+  db.run(`
+    CREATE TABLE branches (
+      id TEXT PRIMARY KEY, brand_id TEXT NOT NULL, name TEXT NOT NULL, slug TEXT NOT NULL,
+      address_text TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL,
+      phone TEXT, is_active INTEGER DEFAULT 1, is_open_override INTEGER DEFAULT 1
+    );
+    CREATE TABLE branch_categories (id TEXT PRIMARY KEY, branch_id TEXT, brand_id TEXT, name TEXT NOT NULL, image_url TEXT, sort_order INTEGER DEFAULT 0);
+    CREATE TABLE products (id TEXT PRIMARY KEY, brand_id TEXT NOT NULL, category_id TEXT, name TEXT NOT NULL, slug TEXT, description TEXT, image_url TEXT, image TEXT);
+    CREATE TABLE branch_products (
+      branch_id TEXT NOT NULL, product_id TEXT NOT NULL, branch_category_id TEXT,
+      name_override TEXT, description_override TEXT, image_override TEXT,
+      price REAL, stock INTEGER, is_available INTEGER, low_stock_threshold INTEGER, created_at TEXT
+    );
+  `);
+
+  db.run(`INSERT INTO branches VALUES ('b1','brand1','Test Branch','test','Jl. Test',-5,105,'0800',1,1)`);
+
+  const adapter = new SqliteClientDataAdapter(db);
+  const result = await adapter.syncCatalog({
+    branch_id: 'b1',
+    brand_id: 'brand1',
+    categories: [
+      { id: 'bc1', name: 'Makanan', image_url: 'food.jpg', sort_order: 1 },
+      { id: 'bc2', name: 'Minuman', image_url: null, sort_order: 2 },
+    ],
+    products: [
+      {
+        id: 'p1', name: 'Nasi Goreng', slug: 'nasi-goreng', description: 'Desc', image_url: 'p1.jpg', category_id: 'c1',
+        branch_category_id: 'bc1', name_override: null, description_override: null, image_override: null,
+        price: 25000, stock: 50, is_available: true, low_stock_threshold: 5, created_at: '2026-01-01T00:00:00Z',
+      },
+      {
+        id: 'p2', name: 'Es Teh', slug: 'es-teh', description: 'Cold', image_url: 'p2.jpg', category_id: 'c2',
+        branch_category_id: 'bc2', name_override: 'Es Teh Bangjo', description_override: null, image_override: null,
+        price: 5000, stock: 100, is_available: true, low_stock_threshold: 10, created_at: '2026-01-01T00:00:00Z',
+      },
+    ],
+  });
+
+  assert.deepEqual(result, {
+    branch_id: 'b1',
+    categories_upserted: 2,
+    products_upserted: 2,
+    branch_products_upserted: 2,
+  });
+
+  const cats = db.exec('SELECT id, name, sort_order FROM branch_categories WHERE branch_id = \'b1\' ORDER BY sort_order');
+  assert.equal(cats[0].values.length, 2);
+  assert.equal(cats[0].values[0][0], 'bc1');
+  assert.equal(cats[0].values[0][1], 'Makanan');
+  assert.equal(cats[0].values[1][0], 'bc2');
+
+  const prods = db.exec('SELECT id, name FROM products WHERE brand_id = \'brand1\' ORDER BY id');
+  assert.equal(prods[0].values.length, 2);
+  assert.equal(prods[0].values[0][1], 'Nasi Goreng');
+  assert.equal(prods[0].values[1][1], 'Es Teh');
+
+  const bps = db.exec('SELECT product_id, price, stock, name_override FROM branch_products WHERE branch_id = \'b1\' ORDER BY product_id');
+  assert.equal(bps[0].values.length, 2);
+  assert.equal(bps[0].values[0][1], 25000);
+  assert.equal(bps[0].values[0][2], 50);
+  assert.equal(bps[0].values[1][3], 'Es Teh Bangjo');
+
+  const catalog = await adapter.getCatalogData({ branch_id: 'b1' });
+  assert.equal(catalog.items.length, 2);
+  assert.equal(catalog.items[0].name, 'Nasi Goreng');
+  assert.equal(catalog.items[1].name, 'Es Teh Bangjo');
+  assert.equal(catalog.categories.length, 2);
+});
+
+test('sqlite adapter catalog.sync replaces previous data on re-sync (idempotent)', async () => {
+  const SQL = await initSqlJs();
+  const db = new SQL.Database();
+
+  db.run(`
+    CREATE TABLE branches (
+      id TEXT PRIMARY KEY, brand_id TEXT NOT NULL, name TEXT NOT NULL, slug TEXT NOT NULL,
+      address_text TEXT NOT NULL, latitude REAL NOT NULL, longitude REAL NOT NULL,
+      phone TEXT, is_active INTEGER DEFAULT 1, is_open_override INTEGER DEFAULT 1
+    );
+    CREATE TABLE branch_categories (id TEXT PRIMARY KEY, branch_id TEXT, brand_id TEXT, name TEXT NOT NULL, image_url TEXT, sort_order INTEGER DEFAULT 0);
+    CREATE TABLE products (id TEXT PRIMARY KEY, brand_id TEXT NOT NULL, category_id TEXT, name TEXT NOT NULL, slug TEXT, description TEXT, image_url TEXT, image TEXT);
+    CREATE TABLE branch_products (
+      branch_id TEXT NOT NULL, product_id TEXT NOT NULL, branch_category_id TEXT,
+      name_override TEXT, description_override TEXT, image_override TEXT,
+      price REAL, stock INTEGER, is_available INTEGER, low_stock_threshold INTEGER, created_at TEXT
+    );
+  `);
+
+  db.run(`INSERT INTO branches VALUES ('b1','brand1','Test Branch','test','Jl. Test',-5,105,'0800',1,1)`);
+
+  const adapter = new SqliteClientDataAdapter(db);
+
+  await adapter.syncCatalog({
+    branch_id: 'b1',
+    brand_id: 'brand1',
+    categories: [{ id: 'bc1', name: 'Old Category', sort_order: 0 }],
+    products: [{
+      id: 'p1', name: 'Old Product', slug: 'old', description: '', image_url: null, category_id: null,
+      branch_category_id: 'bc1', price: 10000, stock: 10, is_available: true, low_stock_threshold: 5,
+    }],
+  });
+
+  assert.equal(db.exec('SELECT COUNT(*) FROM branch_products WHERE branch_id = \'b1\'')[0].values[0][0], 1);
+  assert.equal(db.exec('SELECT COUNT(*) FROM branch_categories WHERE branch_id = \'b1\'')[0].values[0][0], 1);
+
+  await adapter.syncCatalog({
+    branch_id: 'b1',
+    brand_id: 'brand1',
+    categories: [
+      { id: 'bc_new', name: 'New Category', sort_order: 1 },
+    ],
+    products: [{
+      id: 'p_new', name: 'New Product', slug: 'new', description: '', image_url: null, category_id: null,
+      branch_category_id: 'bc_new', price: 20000, stock: 20, is_available: true, low_stock_threshold: 5,
+    }],
+  });
+
+  assert.equal(db.exec('SELECT COUNT(*) FROM branch_products WHERE branch_id = \'b1\'')[0].values[0][0], 1);
+  assert.equal(db.exec('SELECT COUNT(*) FROM branch_categories WHERE branch_id = \'b1\'')[0].values[0][0], 1);
+
+  const bp = db.exec('SELECT product_id, price FROM branch_products WHERE branch_id = \'b1\'');
+  assert.equal(bp[0].values[0][0], 'p_new');
+  assert.equal(bp[0].values[0][1], 20000);
+
+  const cat = db.exec('SELECT id, name FROM branch_categories WHERE branch_id = \'b1\'');
+  assert.equal(cat[0].values[0][0], 'bc_new');
+  assert.equal(cat[0].values[0][1], 'New Category');
+});
+
+test('sqlite adapter catalog.sync validates required fields', async () => {
+  const SQL = await initSqlJs();
+  const db = new SQL.Database();
+  db.run(`CREATE TABLE products (id TEXT PRIMARY KEY, brand_id TEXT, category_id TEXT, name TEXT, slug TEXT, description TEXT, image_url TEXT, image TEXT)`);
+  db.run(`CREATE TABLE branch_categories (id TEXT PRIMARY KEY, branch_id TEXT, brand_id TEXT, name TEXT, image_url TEXT, sort_order INTEGER DEFAULT 0)`);
+  db.run(`CREATE TABLE branch_products (branch_id TEXT, product_id TEXT, branch_category_id TEXT, name_override TEXT, description_override TEXT, image_override TEXT, price REAL, stock INTEGER, is_available INTEGER, low_stock_threshold INTEGER, created_at TEXT)`);
+
+  const adapter = new SqliteClientDataAdapter(db);
+
+  await assert.rejects(() => adapter.syncCatalog({}), /branch_id/);
+  await assert.rejects(() => adapter.syncCatalog({ branch_id: 'b1' }), /categories/);
+  await assert.rejects(() => adapter.syncCatalog({ branch_id: 'b1', categories: [] }), /products/);
+  await assert.rejects(() => adapter.syncCatalog({ branch_id: 'b1', categories: [{ id: '' }], products: [] }), /id/);
+  await assert.rejects(() => adapter.syncCatalog({ branch_id: 'b1', categories: [{ id: 'bc1', name: '' }], products: [] }), /name/);
+  await assert.rejects(() => adapter.syncCatalog({ branch_id: 'b1', categories: [], products: [{ id: 'p1', name: 'X', price: -1 }] }), /price/);
+});
