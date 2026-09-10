@@ -8,6 +8,7 @@ const { CODES, ConnectorError } = require('../contract/errors');
 const TABLES = Object.freeze({
   branches: 'branches',
   branchDeliverySettings: 'branch_delivery_settings',
+  branchCategories: 'branch_categories',
   branchProducts: 'branch_products',
   products: 'products',
   categories: 'categories',
@@ -106,12 +107,7 @@ class SqliteClientDataAdapter extends ClientDataAdapter {
       LIMIT 1
     `, [input.branch_id]);
 
-    return {
-      branch: {
-        ...branch,
-        delivery: settings || null,
-      },
-    };
+    return { branch: { ...branch, delivery: settings || null } };
   }
 
   async getCatalogData(input) {
@@ -121,19 +117,19 @@ class SqliteClientDataAdapter extends ClientDataAdapter {
       SELECT
         bp.product_id,
         bp.branch_id,
+        bp.branch_category_id AS category_id,
+        COALESCE(bp.name_override, p.name) AS name,
+        p.slug,
+        COALESCE(bp.description_override, p.description) AS description,
+        COALESCE(bp.image_override, p.image_url, p.image) AS image_url,
         bp.price,
         bp.is_available,
+        bp.stock,
         bp.low_stock_threshold,
-        p.name,
-        p.slug,
-        p.description,
-        p.image_url,
-        p.image,
-        COALESCE(bc.name, c.name) AS category_name
+        bc.name AS category_name
       FROM ${this.tables.branchProducts} bp
       JOIN ${this.tables.products} p ON p.id = bp.product_id
-      LEFT JOIN branch_categories bc ON bc.id = bp.branch_category_id
-      LEFT JOIN ${this.tables.categories} c ON c.id = p.category_id
+      LEFT JOIN ${this.tables.branchCategories} bc ON bc.id = bp.branch_category_id
       WHERE bp.branch_id = ?
       ORDER BY bp.created_at ASC, bp.product_id ASC
     `, [input.branch_id]);
@@ -151,10 +147,7 @@ class SqliteClientDataAdapter extends ClientDataAdapter {
       ORDER BY product_id ASC
     `, [input.branch_id]);
 
-    return {
-      branch_id: input.branch_id,
-      items,
-    };
+    return { branch_id: input.branch_id, items };
   }
 
   async persistOrder(input) {
