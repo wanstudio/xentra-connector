@@ -14,10 +14,12 @@ class NativeSqliteDatabase {
     this.db = db;
   }
 
-  exec(sql) {
+  exec(sql, params = []) {
     const normalized = String(sql).trim();
+    const hasParams = Array.isArray(params) && params.length > 0;
+
     if (/^PRAGMA\s+table_info\(/i.test(normalized)) {
-      const rows = this.db.prepare(normalized).all();
+      const rows = hasParams ? this.db.prepare(normalized).all(...params) : this.db.prepare(normalized).all();
       return rows.length === 0
         ? []
         : [{
@@ -27,7 +29,7 @@ class NativeSqliteDatabase {
     }
 
     if (/^\s*(SELECT|WITH|PRAGMA)\b/i.test(normalized)) {
-      const rows = this.db.prepare(normalized).all();
+      const rows = hasParams ? this.db.prepare(normalized).all(...params) : this.db.prepare(normalized).all();
       if (rows.length === 0) return [];
       return [{
         columns: Object.keys(rows[0]),
