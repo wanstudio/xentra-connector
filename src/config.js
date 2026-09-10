@@ -1,10 +1,13 @@
 'use strict';
 
+const path = require('path');
+
 const contractVersion = process.env.XENTRA_CONTRACT_VERSION || 'v1';
 const port = Number(process.env.PORT || 3100);
 const connectorId = process.env.XENTRA_CONNECTOR_ID || '';
 const coreHmacSecret = process.env.XENTRA_CORE_HMAC_SECRET || '';
 const authMaxSkewMs = Number(process.env.XENTRA_AUTH_MAX_SKEW_MS || 300000);
+const publicDir = process.env.XENTRA_PUBLIC_DIR || path.join(__dirname, '../public');
 
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error('Invalid PORT');
@@ -20,4 +23,5 @@ module.exports = Object.freeze({
   connectorId,
   coreHmacSecret,
   authMaxSkewMs,
+  publicDir,
 });

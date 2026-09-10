@@ -1,6 +1,8 @@
 'use strict';
 
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const config = require('../config');
 const { getStatus } = require('../health/status');
 const { getCapabilities } = require('../capabilities/registry');
@@ -12,6 +14,24 @@ const { createPersistenceService } = require('../persistence/createPersistenceSe
 
 const MAX_BODY_BYTES = 64 * 1024;
 const replayGuard = new ReplayGuard({ ttlMs: config.authMaxSkewMs });
+
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.webp': 'image/webp',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.txt': 'text/plain; charset=utf-8',
+};
 
 function writeJson(res, statusCode, body) {
   const payload = JSON.stringify(body);
@@ -114,8 +134,42 @@ async function handlePersistence(req, res, persistenceService) {
   }
 }
 
+function getPublicDir() {
+  return config.publicDir || path.join(__dirname, '../../public');
+}
+
+function serveStaticFile(res, filePath) {
+  try {
+    if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) return false;
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    const content = fs.readFileSync(filePath);
+    res.statusCode = 200;
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', ext === '.html' ? 'no-cache' : 'public, max-age=31536000, immutable');
+    res.end(content);
+    return true;
+  } catch (_e) {
+    return false;
+  }
+}
+
+function serveIndexFallback(res, publicDir) {
+  const indexPath = path.join(publicDir, 'index.html');
+  return serveStaticFile(res, indexPath);
+}
+
+function isApiRoute(url) {
+  return url === '/health'
+    || url === '/capabilities'
+    || url.startsWith('/v1/')
+    || url.startsWith('/api/');
+}
+
 function createHttpServer(options = {}) {
   const persistenceService = options.persistenceService || createPersistenceService(options.adapter, options.persistenceOptions);
+  const publicDir = options.publicDir || getPublicDir();
+  const hasPublicDir = fs.existsSync(publicDir) && fs.statSync(publicDir).isDirectory();
 
   return http.createServer(async (req, res) => {
     try {
@@ -133,6 +187,31 @@ function createHttpServer(options = {}) {
 
       if (req.method === 'POST' && req.url === '/v1/persistence') {
         return await handlePersistence(req, res, persistenceService);
+      }
+
+      // Static file serving for Customer PWA (GET/HEAD only)
+      if (hasPublicDir && (req.method === 'GET' || req.method === 'HEAD')) {
+        const urlPath = req.url.split('?')[0];
+
+        // Try exact file match first
+        const filePath = path.join(publicDir, urlPath);
+        if (serveStaticFile(res, filePath)) return;
+
+        // Clean path for further resolution (strip trailing slash)
+        const cleanPath = urlPath.endsWith('/') ? urlPath.slice(0, -1) : urlPath;
+
+        if (!path.extname(cleanPath)) {
+          // Try directory index (e.g., /checkout/ -> /checkout/index.html)
+          const dirIndex = path.join(publicDir, cleanPath, 'index.html');
+          if (serveStaticFile(res, dirIndex)) return;
+
+          // Try with .html extension (e.g., /checkout -> /checkout.html)
+          const htmlPath = path.join(publicDir, cleanPath + '.html');
+          if (serveStaticFile(res, htmlPath)) return;
+        }
+
+        // SPA fallback: serve index.html for client-side routes
+        if (serveIndexFallback(res, publicDir)) return;
       }
 
       return writeJson(res, 404, {
