@@ -22,9 +22,9 @@ test('request envelope contains locked baseline metadata', () => {
   assert.equal(validateEnvelope(envelope), true);
 });
 
-test('capabilities advertise contract version', () => {
+test('capabilities advertise contract version and typed persistence', () => {
   const result = getCapabilities();
   assert.deepEqual(result.contract_versions, ['v1']);
   assert.equal(result.capabilities.health, true);
-  assert.equal(result.capabilities.typed_persistence, false);
+  assert.equal(result.capabilities.typed_persistence, true);
 });
